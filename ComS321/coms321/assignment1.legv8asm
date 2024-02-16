@@ -1,0 +1,304 @@
+  // @author Nick Pinnello netID: npin@iastate.edu
+  // @author Max Strater netID: moomoo@iastate.edu
+  // (ComS321) 
+    
+    B main
+
+main:
+    //     //OUTPUT REGISTERS
+    //     //X6 is length of our array
+    //     //X7 is final output array
+
+    //     //Saved Registers used and their purpose
+    //     //X20 is length of the array
+    //     //X21 is selectionSort current index
+    //     //X22 is findSmallest current index
+    //     //X23 is findSmallest return index
+    //     //X24 is selectionSort return address
+
+    //     //Array is stored in X19, one of the saved Registers
+    //     //Array size of 10
+
+        SUBI SP, SP, #80    //Make space for 10 integers
+        ADD X9, SP, XZR     //temporarily remember where the array is
+        
+        SUBI SP, SP, #48    //Remember the original values of the saved registers used
+        STUR X19, [SP, #0]
+        STUR X20, [SP, #8]
+        STUR X21, [SP, #16]
+        STUR X22, [SP, #24]
+        STUR X23, [SP, #32]
+        STUR X24, [SP, #40]
+
+         ADD X19, X9, XZR    //Assign X19 to the our Array
+         ADDI X20, XZR, #10  //Assign our length of our Array
+
+         BL fill
+         
+    // Load parameters and call cycle_sort
+        ADD X0, XZR, X19
+        ADD X1, XZR, X20
+        BL cycle_sort
+
+    // Load parameters and call binary search
+        ADD X0, XZR, X19
+        ADD X1, XZR, XZR
+        SUBI X2, X20, #1
+        ADDI X3, XZR, #0
+
+        BL binary_search
+
+        PRNT X4
+
+       DUMP
+
+        ADD X6, X20, XZR    //store our length of the array into a result register
+        ADD X7, X19, XZR    //store our finalized array as a result
+
+        LDUR X19, [SP, #0]  //restore our Saved Registers we used to their original values
+        LDUR X20, [SP, #8]
+        LDUR X21, [SP, #16]
+        LDUR X22, [SP, #24]
+        LDUR X23, [SP, #32]
+        LDUR X24, [SP, #40]
+        ADDI SP, SP, #48     //Move the stack pointer back to it's original spot right after array creation
+
+         B end
+fill:
+        //Array [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+        ADDI X9, XZR, #10
+        STUR X9, [X19, #0]
+
+        ADDI X9, XZR, #9
+        STUR X9, [X19, #8]
+
+        ADDI X9, XZR, #8
+        STUR X9, [X19, #16]
+
+        ADDI X9, XZR, #7
+        STUR X9, [X19, #24]
+
+        ADDI X9, XZR, #6
+        STUR X9, [X19, #32]
+
+        ADDI X9, XZR, #5
+        STUR X9, [X19, #40]
+
+        ADDI X9, XZR, #4
+        STUR X9, [X19, #48]
+
+        ADDI X9, XZR, #3
+        STUR X9, [X19, #56]
+
+        ADDI X9, XZR, #2
+        STUR X9, [X19, #64]
+
+        ADDI X9, XZR, #1
+        STUR X9, [X19, #72]
+
+        BR LR
+   
+
+swap:
+        LSL X9, X21, #3
+        LSL X10, X23, #3
+        ADD X9, X9, X19         //X9 = Array @ index X21
+        ADD X10, X10, X19       //X10 = Array @ index X23
+
+        LDUR X11, [X9, #0]      //X11 = array @ X9
+        LDUR X12, [X10, #0]     //X12 = array @ x10
+
+        STUR X12, [X9, #0]      //X9 = X10
+        STUR X11, [X10, #0]     //X10 = X9
+        
+        BR LR
+
+find_index: 
+// X0: Address to start of array
+// X4: Found index
+
+        ADDI X9, X2, #1
+        ADD X10, XZR, X2
+
+        SUBS XZR, X9, X1
+        B.LT find_index_loop
+
+        B find_index_end
+
+find_index_loop_increment:
+        ADDI X10, X10, #1
+        B find_index_loop_end
+ 
+
+find_index_loop:
+        ADD X11, XZR, X9
+        LSL X11, X11, #3
+        ADD X11, X11, X0
+        LDUR X11, [X11, #0]
+
+        SUBS XZR, X11, X3
+        B.LT find_index_loop_increment
+
+    find_index_loop_end:
+        ADDI X9, X9, #1
+
+        SUBS XZR, X9, X1
+        B.LT find_index_loop
+
+    find_index_end:
+        ADD X4, XZR, X10
+        BR LR
+
+
+// It searches the array a between    *
+//  * the values of start (inclusive) and end (exclusive) for      *
+//  * value.  If value is found, its index is returned; otherwise  *
+//  * the function returns -1 to indicate failure.                 */
+
+binary_search:
+    SUBI SP, SP, #8
+    STUR LR, [SP, #0]
+
+    SUBS XZR, X2, X1
+    B.LT not_found
+
+    // index divided by 2 
+    ADD X9, X1, X2
+    LSR X9, X9, #1
+
+    ADD X10, XZR, X9
+    LSL X10, X10, #3
+    ADD X10, X10, X0
+    LDUR X10, [X10, #0]
+
+    SUBS XZR, X10, X3
+    B.EQ found
+    
+    B.GT binary_search_left
+
+    binary_search_right:
+        ADDI X1, X9, #1
+        BL binary_search
+        B binary_search_end
+
+    binary_search_left:
+        SUBI X2, X9, #1
+        BL binary_search
+        B binary_search_end
+
+    found:
+        ADD X4, XZR, X9
+        B binary_search_end
+    
+    not_found:
+        ADDI X4, XZR, #-1
+        B binary_search_end
+
+    binary_search_end:
+        LDUR LR, [SP, #0]
+        ADDI SP, SP, #8
+
+        BR LR
+
+// * skip_duplicates returns the index of the first element in a *
+//  * after start which is not equal to value.                    */
+skip_duplicates:
+    ADD X9, XZR, X1
+    ADD X10, XZR, X9
+    LSL X10, X10, #3
+    ADD X10, X10, X0
+    LDUR X10, [X10, #0]
+
+    SUBS XZR, X2, X10
+    CBNZ x11, exit
+    ADDI x9, x9, #1
+
+//returns the index x9 in x0
+    exit:
+        ADD x0, XZR, x9
+        BR LR
+
+   //B.NE skip_duplicates_end
+
+// /* Complete cycle finds the index and does the swap for each element *
+//  * in the cycle beginning at start.                                  *
+//  *                                                                   *
+//  * Note that this implements the "while (idx != cstart) {" loop from *
+//  * the reference implementation at the top of this file.             */
+
+complete_cycle: 
+    SUBI SP, SP, #8
+    STUR LR, [SP, #0]
+
+    SUBS XZR, X3, X2
+    B.EQ complete_cycle_end 
+
+    SUBI SP, SP, #8
+    STUR X19, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X20, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X21, [SP, #0]
+
+    BL skip_duplicates
+
+    ADD X9, XZR, X3
+    ADD X1, XZR, X19
+    ADD X2, XZR, X20
+    ADD X3, XZR, X21
+
+    // swap
+    ADD X19, XZR, X0
+    ADD X20, XZR, X1
+    ADD X21, XZR, X9
+
+    ADD X10, XZR, X9
+    LSL X10, X10, #3
+    ADD X10, X10, X0
+
+    complete_cycle_end:
+    LDUR X21, [SP, #0]
+    ADDI SP, SP, #8
+
+    LDUR X20, [SP, #0]
+    ADDI SP, SP, #8
+    BR LR
+    
+    
+// /* cycle_sort sorts the array a (of n elements) using the cycle sort *
+//  * algorithm in the refactored form using the helper function given  *
+                                                            
+cycle_sort:
+    SUBI SP, SP, #8
+    STUR LR, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X19, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X20, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X21, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X22, [SP, #0]
+    
+    SUBI SP, SP, #8
+    STUR X23, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X24, [SP, #0]
+
+    SUBI SP, SP, #8
+    STUR X25, [SP, #0]
+
+    ADD X9, XZR, XZR
+
+    BL find_index
+
+
+end:
+    HALT //shuts down the emulator
