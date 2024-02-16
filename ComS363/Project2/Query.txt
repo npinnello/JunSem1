@@ -1,0 +1,95 @@
+// 1) The campus addresses of the students whose name is "Kevin"
+MATCH (student:students {name: "Kevin"})
+RETURN student.c_addr AS campus_address;
+
+// 2) The major name and major level of the students whose name is "Kevin"
+MATCH (student:students {name: "Kevin"})-[:major]->(major:degrees)
+RETURN major.name AS major_name, major.level AS major_level;
+
+// 3) The numbers and names of all courses offered by the department of Computer Science, order by course number
+MATCH (dept:departments {name: "Computer Science"})<-[:offers]-(course:courses)
+RETURN course.number AS course_number, course.name AS course_name
+ORDER BY course_number;
+
+// 4) The name of the students enrolled in Fall2020 semester
+MATCH (student:students)-[register:register]->()
+WHERE register.regtime = "Fall2020"
+RETURN student.name AS student_name;
+
+// 5) All degree names and levels offered by the department Computer Science, order by degree level
+MATCH (dept:departments {name: "Computer Science"})<-[:administer]-(degree:degrees)
+RETURN degree.name AS degree_name, degree.level AS degree_level
+ORDER BY degree_level;
+
+// 6) The snum and names of all students who have a minor, order by student snum
+MATCH (student:students)-[:minor]->(:degrees)
+RETURN student.snum AS student_snum, student.name AS student_name
+ORDER BY student_snum;
+
+// 7) The names and snums of all non-undergraduate students enrolled in course "database", order by snum
+MATCH (s:students)-[:register]->(c:courses {name: "Database"})
+MATCH (s)-[:major]->(degree:degrees)
+WHERE degree.level IN ["MS", "PHD"]
+RETURN s.snum, s.name
+ORDER BY s.snum;
+
+// 8) The name, snum and SSN of the students whose name contains letter "n" or "N", order by snum
+MATCH (student:students)
+WHERE toLower(student.name) CONTAINS "n"
+RETURN student.name AS student_name, student.snum AS student_snum, student.ssn AS student_ssn
+ORDER BY student_snum;
+
+// 9) The name, snum and SSN of the students whose name is between "Becky" and "Nicole", order by name
+MATCH (student:students)
+WHERE student.name >= "Becky" AND student.name <= "Nicole"
+RETURN student.name AS student_name, student.snum AS student_snum, student.ssn AS student_ssn
+ORDER BY student_name;
+
+// 10) The course number, name and the number of students registered for each course, order by course number
+MATCH (course:courses)
+OPTIONAL MATCH (course)<-[register:register]-(:students)
+WITH course, COUNT(register) AS num_students
+RETURN course.number AS course_number, course.name AS course_name, COALESCE(num_students, 0) AS num_registered_students
+ORDER BY course_number;
+
+// 11) The count of female students who major or minor in Software Engineering degrees at any level
+MATCH (degree:degrees {name: "Software Engineering"})
+MATCH (student:students)-[:major|minor]->(degrees)
+WHERE student.gender = "F"
+RETURN COUNT(DISTINCT student) AS count_female_students;
+
+// 12) The numbers and names of courses and their corresponding average grades from students registered in the past semesters
+MATCH (c:courses)<-[r:register]-(s:students)
+WITH c, s, r.grade AS grade 
+RETURN c.number, c.name, AVG(grade)
+
+// 13) The count of female students who major or minor in a degree managed by LAS departments
+MATCH (dept:departments)-[:administer]->(degree:degrees)<-[:major|minor]-(student:students)
+WHERE student.gender = "F" AND dept.college = "LAS"
+RETURN COUNT(DISTINCT student) AS count_female_students;
+
+// 14) The names of degrees that have more male students than female students (major or minor)
+MATCH (degree:degrees)<-[:major|minor]-(student:students)
+WITH degree, COLLECT(student.gender) AS genders
+WHERE 'M' IN genders AND NOT 'F' IN genders
+RETURN degree.name AS degree_name;
+
+// 15) The major degree that the youngest student is taken
+MATCH (student:students)
+WITH MIN(student.dob) AS youngest_dob
+MATCH (student:students {dob: youngest_dob})-[:major]->(degree:degrees)
+RETURN degree.name AS degree_name;
+
+// 16) The most popular major degrees and the number of students of these most popular majors
+MATCH (degree:degrees)<-[:major]-(student:students)
+WITH degree, COUNT(student) AS num_students
+ORDER BY num_students DESC
+LIMIT 1
+RETURN degree.name AS most_popular_major, num_students;
+
+// 17) The most popular major degrees and number of students of the most popular degrees
+MATCH (degree:degrees)<-[:major|minor]-(student:students)
+WITH degree, COUNT(student) AS num_students
+ORDER BY num_students DESC
+LIMIT 1
+RETURN degree.name AS most_popular_degree, num_students;
